@@ -18,5 +18,26 @@ const markers={};const bounds=[];
 places.forEach(p=>{const m=L.marker([p.lat,p.lng],{icon:L.divIcon({className:'',html:'<div class="pin '+(p.type==='Поесть'?'food':p.type==='Бар'?'bar':'')+'">'+(places.indexOf(p)+1)+'</div>',iconSize:[34,34],iconAnchor:[17,17]})}).addTo(map);markers[p.id]=m;bounds.push([p.lat,p.lng]);m.bindPopup('<strong>'+p.name+'</strong><br>'+p.type+'<br><button onclick="showPlace(\\'+p.id+'\')">Открыть карточку ↗</button>')});map.fitBounds(bounds,{padding:[30,30]});
 window.showPlace=id=>{setFilter('Все');setTimeout(()=>document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'}),80)};
 let filter='Все';function setFilter(v){filter=v;render()}
-function render(){document.getElementById('filters').innerHTML=['Все','Посмотреть','Поесть','Бар'].map(v=>'<button class="'+(filter===v?'active':'')+'" onclick="setFilter(\\'+v+'\')">'+v+'</button>').join('');document.getElementById('cards').innerHTML=places.filter(p=>filter==='Все'||p.type===filter).map(p=>'<article class="card" id="'+p.id+'"><div class="photoFrame"><img loading="lazy" data-place="'+p.id+'" alt="Фото: '+p.name+'" style="display:none"><span class="count">'+String(places.indexOf(p)+1).padStart(2,'0')+' / 09</span></div><div class="body"><div class="type">'+p.type+'</div><h2>'+p.name+'</h2><p>'+p.desc+'</p><div class="buttons"><a class="btn" target="_blank" rel="noopener" href="'+yandex(p)+'">Яндекс Карты ↗</a><a class="btn alt" target="_blank" rel="noopener" href="'+photos(p)+'">Все фото ↗</a>'+(p.site?'<a class="btn alt" target="_blank" rel="noopener" href="'+p.site+'">Сайт ↗</a>':'')+'<button class="btn alt" style="border:0;cursor:pointer" onclick="focusPlace(\\'+p.id+'\')">На карте ↑</button></div></div></article>').join('');loadPhotos()}const imageCache={};async function loadPhotos(){for(const p of places.filter(x=>filter==='Все'||x.type===filter)){const img=document.querySelector('img[data-place="'+p.id+'"]');if(!img)continue;if(imageCache[p.id]){img.src=imageCache[p.id];img.style.display='block';continue}try{const url='https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(p.photo)+'&gsrlimit=1&prop=pageimages&pithumbsize=700&format=json&origin=*';const r=await fetch(url);const j=await r.json();const pages=Object.values(j.query?.pages||{});const src=pages[0]?.thumbnail?.source;if(src){imageCache[p.id]=src;const el=document.querySelector('img[data-place="'+p.id+'"]');if(el){el.src=src;el.style.display='block'}}}catch(e){}}} window.focusPlace=id=>{const p=places.find(x=>x.id===id);map.setView([p.lat,p.lng],15);markers[id].openPopup();document.getElementById('map').scrollIntoView({behavior:'smooth'})};render();
+function render(){
+const filters=document.getElementById('filters');filters.innerHTML='';
+['Все','Посмотреть','Поесть','Бар'].forEach(v=>{const btn=document.createElement('button');btn.textContent=v;btn.className=v===filter?'active':'';btn.addEventListener('click',()=>{filter=v;render()});filters.appendChild(btn)});
+const cards=document.getElementById('cards');cards.innerHTML='';
+places.filter(p=>filter==='Все'||p.type===filter).forEach(p=>{
+const article=document.createElement('article');article.className='card';article.id=p.id;
+const photo=document.createElement('div');photo.className='photoFrame';
+const img=document.createElement('img');img.loading='lazy';img.alt=p.name;img.style.display='none';photo.appendChild(img);
+const body=document.createElement('div');body.className='body';
+const label=document.createElement('div');label.className='type';label.textContent=p.type;
+const title=document.createElement('h2');title.textContent=p.name;
+const desc=document.createElement('p');desc.textContent=p.desc;
+const actions=document.createElement('div');actions.className='buttons';
+function addLink(label,url,secondary){const link=document.createElement('a');link.textContent=label;link.href=url;link.target='_blank';link.rel='noopener';link.className='btn'+(secondary?' alt':'');actions.appendChild(link)}
+addLink('Яндекс Карты ↗',yandex(p),false);addLink('Фотографии ↗',photos(p),true);if(p.site)addLink('Сайт ↗',p.site,true);
+const locate=document.createElement('button');locate.textContent='На карте ↑';locate.className='btn alt';locate.style.border='0';locate.addEventListener('click',()=>focusPlace(p.id));actions.appendChild(locate);
+body.append(label,title,desc,actions);article.append(photo,body);cards.appendChild(article);
+loadPhoto(p,img);
+});
+}
+async function loadPhoto(p,img){try{const u='https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(p.photo)+'&gsrlimit=1&prop=pageimages&pithumbsize=700&format=json&origin=*';const r=await fetch(u);const j=await r.json();const page=Object.values(j.query?.pages||{})[0];if(page?.thumbnail?.source){img.src=page.thumbnail.source;img.style.display='block'}}catch(e){}}
+window.focusPlace=id=>{const p=places.find(x=>x.id===id);map.setView([p.lat,p.lng],15);markers[id].openPopup();document.getElementById('map').scrollIntoView({behavior:'smooth'})};render();
 </script></body></html>
